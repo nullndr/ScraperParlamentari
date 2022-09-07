@@ -17,7 +17,7 @@ soup = BeautifulSoup(r.text, 'lxml')
 deputati = soup.find(id='idPersona').find_all(value=re.compile('\d'))
 
 # Per ciascun deputato ...
-for deputato in deputati[:10]:
+for deputato in deputati:
     n_deputati += 1
     # ... estraggo id, nome e cognome dal menù a tendina ...
     id = deputato['value']
