@@ -7,3 +7,5 @@
 Tali dati sono estratti da:
 - https://www.camera.it/leg18/28
 e dalle pagine personali dei deputati agli indirizzi https://scrivi.camera.it/scrivi?dest=deputato&id_aul=id dove id è l'id del deputato di cui sopra.
+
+Ringrazio https://github.com/nullndr per la rapida e sagace rifattorizzazione!
