@@ -1,5 +1,5 @@
-deputati.py crea nella stessa cartella dello script il file deputati.csv, che contiene, separati da virgole e in questo ordine:
-- id del deputato
+`main.py` crea, nella stessa cartella dello script, il file `deputati.csv`, che contiene, separati da virgole e in questo ordine:
+- id del deputato (numero di 5 o 6 cifre)
 - COGNOME (tutti in maiuscolo)
 - Nome (con le iniziali maiuscole)
 - indirizzo e-mail @camera.it
