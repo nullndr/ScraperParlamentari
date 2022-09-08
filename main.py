@@ -116,15 +116,15 @@ def scrape_senatori():
     return rows
 
 def main() -> None:
-    create_csv_file(CSV_FILENAME_SENATORI)
-    create_csv_file(CSV_FILENAME_DEPUTATI)
+    create_csv_file(LEGISLATURA + "_" + CSV_FILENAME_SENATORI)
+    create_csv_file(LEGISLATURA + "_" + CSV_FILENAME_DEPUTATI)
     
     rows = scrape_senatori()
-    write_csv(CSV_FILENAME_SENATORI, rows)
+    write_csv(LEGISLATURA + "_" + CSV_FILENAME_SENATORI, rows)
 
     rows = scrape()
 
-    write_csv(CSV_FILENAME_DEPUTATI, rows)
+    write_csv(LEGISLATURA + "_" + CSV_FILENAME_DEPUTATI, rows)
 
 
 if __name__ == "__main__":
