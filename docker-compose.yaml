@@ -1,0 +1,7 @@
+version: "3.9"
+services:
+  scraper:
+    build: .
+    container_name: scraper
+    volumes:
+      - ./:/app    
