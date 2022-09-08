@@ -89,18 +89,26 @@ def scrape_senatori():
         for senatore in senatori:
             elem = senatore.select_one(":nth-child(2)").p.a
             cognome, nome = elem.get_text().lower().split(" ", 1)
+            # Ottengo l'id troncando il nome della foto profilo in quanto quello contiene gli zeri di padding mentre quello nel link vero e proprio no
             id = senatore.select_one(":nth-child(1)").img["src"][-12:][:-4]
             link_senatore = "https://www.senato.it/leg/18/BGT/Schede/Attsen/" + id + ".htm"
             r = requests.get(link_senatore)
             writeTo = BeautifulSoup(r.text, 'lxml')
+            # Se si cerca per a con class cnt_email non si trova nulla perchè è iniettato da un js.
             mail = writeTo.find_all("ul", {"class": "composizione contatti"})
 
+            # La parte della mail viene iniettata da un js quindi quando lo cerco tramite BeautifulSoup trovo solo il js. 
+            # Essendo il js "fisso" con solo la parte della mail che cambia, taglio la prima parte sempre uguale, divido il restante per l'apice
+            # solo una volta così ad indice 0 ci sarà la mail ed a indice 1 ci sarà il resto dello script.
             email = str(mail)[124:].split("'", 1)[0]
 
+            # Stampo in console un deputato alla volta per verificare se lo scraping sta funzionando
             print(f'{id:7} {cognome:20} {nome:20} {email}')
 
+            # Preparo una tupla da scrivere nel csv
             rows.append((id, cognome, nome, email))
 
+        # Passo al carattere successivo
         char = chr(ord(char)+1)
 
     return rows
