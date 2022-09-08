@@ -102,7 +102,11 @@ def scrape_senatori():
             # La parte della mail viene iniettata da un js quindi quando lo cerco tramite BeautifulSoup trovo solo il js. 
             # Essendo il js "fisso" con solo la parte della mail che cambia, taglio la prima parte sempre uguale, divido il restante per l'apice
             # solo una volta così ad indice 0 ci sarà la mail ed a indice 1 ci sarà il resto dello script.
-            email = str(mail)[124:].split("'", 1)[0]
+            # L'if è perchè coloro che non hanno la mail non hanno lo script
+            if(str(mail)[37:43]=="script"):
+                email = str(mail)[124:].split("'", 1)[0]
+            else:
+                email = ""
 
             # Stampo in console un deputato alla volta per verificare se lo scraping sta funzionando
             print(f'{id:7} {cognome:20} {nome:20} {email}')
