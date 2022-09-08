@@ -5,10 +5,12 @@ import re
 import requests
 from bs4 import BeautifulSoup
 
+LEGISLATURA = "18"
 CSV_FILENAME_DEPUTATI: str = "deputati.csv"
 CSV_FILENAME_SENATORI: str = "senatori.csv"
+
 # Pagina contenente un menù a tendina con nomi, cognomi e id di tutti i deputati
-DEPUTIES_URL = 'https://www.camera.it/leg18/28'
+DEPUTIES_URL = 'https://www.camera.it/leg'+LEGISLATURA+'/28'
 
 
 def create_csv_file(fileName: str) -> None:
@@ -80,7 +82,7 @@ def scrape_senatori():
     
     char = 'a'
     for i in range(0,28):        
-        url = "https://www.senato.it/leg/18/BGT/Schede/Attsen/Sen" + char + ".html"
+        url = "https://www.senato.it/leg/"+LEGISLATURA+"/BGT/Schede/Attsen/Sen" + char + ".html"
         r = requests.get(url)
         soup = BeautifulSoup(r.text, 'lxml')
 
@@ -91,7 +93,7 @@ def scrape_senatori():
             cognome, nome = elem.get_text().lower().split(" ", 1)
             # Ottengo l'id troncando il nome della foto profilo in quanto quello contiene gli zeri di padding mentre quello nel link vero e proprio no
             id = senatore.select_one(":nth-child(1)").img["src"][-12:][:-4]
-            link_senatore = "https://www.senato.it/leg/18/BGT/Schede/Attsen/" + id + ".htm"
+            link_senatore = "https://www.senato.it/leg/"+LEGISLATURA+"/BGT/Schede/Attsen/" + id + ".htm"
             r = requests.get(link_senatore)
             writeTo = BeautifulSoup(r.text, 'lxml')
             # Se si cerca per a con class cnt_email non si trova nulla perchè è iniettato da un js.
