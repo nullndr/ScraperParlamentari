@@ -88,7 +88,6 @@ def scrape_deputati():
     
     with Pool(processes=64) as pool:  
         res = pool.map(process_lettera_deputati, range(0,28))
-        print(res)
         for data in res:
             rows += data[0]
             numero_deputati += data[1]
@@ -168,12 +167,10 @@ def main() -> None:
         create_csv_file(LEGISLATURA_DESIGNATA + "_" + CSV_FILENAME_DEPUTATI)
         rows = scrape_deputati()
         write_csv(LEGISLATURA_DESIGNATA + "_" + CSV_FILENAME_DEPUTATI, rows)
-    '''
     if (int(LEGISLATURA_DESIGNATA) > 9 and int(LEGISLATURA_DESIGNATA) <= int(ULTIMA_LEGISLATURA)):
         create_csv_file(LEGISLATURA_DESIGNATA + "_" + CSV_FILENAME_SENATORI)
         rows = scrape_senatori()
         write_csv(LEGISLATURA_DESIGNATA + "_" + CSV_FILENAME_SENATORI, rows)
-    '''
 
 if __name__ == "__main__":
     main()
