@@ -5,12 +5,14 @@ import re
 import requests
 from bs4 import BeautifulSoup
 
-LEGISLATURA = "18"
+ULTIMA_LEGISLATURA = "18"
+
+LEGISLATURA_DESIGNATA = "18"
 CSV_FILENAME_DEPUTATI: str = "deputati.csv"
 CSV_FILENAME_SENATORI: str = "senatori.csv"
 
 # Pagina contenente un menù a tendina con nomi, cognomi e id di tutti i deputati
-DEPUTIES_URL = 'https://www.camera.it/leg'+LEGISLATURA+'/28'
+DEPUTIES_URL = 'https://www.camera.it/leg'+LEGISLATURA_DESIGNATA+'/28'
 
 
 def create_csv_file(fileName: str) -> None:
@@ -79,21 +81,25 @@ def scrape() -> list[tuple[str, str, str, str]]:
 def scrape_senatori():
 
     rows: list[tuple[str, str, str, str]] = []
+
+    # Statistiche
+    numero_senatori = senatori_con_mail = senatori_senza_mail = 0
     
     char = 'a'
     for i in range(0,28):        
-        url = "https://www.senato.it/leg/"+LEGISLATURA+"/BGT/Schede/Attsen/Sen" + char + ".html"
+        url = "https://www.senato.it/leg/"+LEGISLATURA_DESIGNATA+"/BGT/Schede/Attsen/Sen" + char + ".html"
         r = requests.get(url)
         soup = BeautifulSoup(r.text, 'lxml')
 
         senatori = soup.find_all("div", {"class": "senatore"})
         
         for senatore in senatori:
+            numero_senatori += 1
             elem = senatore.select_one(":nth-child(2)").p.a
             cognome, nome = elem.get_text().lower().split(" ", 1)
             # Ottengo l'id troncando il nome della foto profilo in quanto quello contiene gli zeri di padding mentre quello nel link vero e proprio no
             id = senatore.select_one(":nth-child(1)").img["src"][-12:][:-4]
-            link_senatore = "https://www.senato.it/leg/"+LEGISLATURA+"/BGT/Schede/Attsen/" + id + ".htm"
+            link_senatore = "https://www.senato.it/leg/"+ULTIMA_LEGISLATURA+"/BGT/Schede/Attsen/" + id + ".htm"
             r = requests.get(link_senatore)
             writeTo = BeautifulSoup(r.text, 'lxml')
             # Se si cerca per a con class cnt_email non si trova nulla perchè è iniettato da un js.
@@ -105,8 +111,10 @@ def scrape_senatori():
             # L'if è perchè coloro che non hanno la mail non hanno lo script
             if(str(mail)[37:43]=="script"):
                 email = str(mail)[124:].split("'", 1)[0]
+                senatori_con_mail += 1
             else:
                 email = ""
+                senatori_senza_mail += 1
 
             # Stampo in console un deputato alla volta per verificare se lo scraping sta funzionando
             print(f'{id:7} {cognome:20} {nome:20} {email}')
@@ -117,19 +125,20 @@ def scrape_senatori():
         # Passo al carattere successivo
         char = chr(ord(char)+1)
 
+    # Riepilogo finale
+    print(f'\nI senatori sono {numero_senatori}, di cui {senatori_con_mail} dotati di indirizzo e-mail e {senatori_senza_mail} no.')
     return rows
 
 def main() -> None:
-    create_csv_file(LEGISLATURA + "_" + CSV_FILENAME_SENATORI)
-    create_csv_file(LEGISLATURA + "_" + CSV_FILENAME_DEPUTATI)
+    if (LEGISLATURA_DESIGNATA > 16 and LEGISLATURA_DESIGNATA <= ULTIMA_LEGISLATURA):
+        create_csv_file(LEGISLATURA_DESIGNATA + "_" + CSV_FILENAME_DEPUTATI)
+        rows = scrape()
+        write_csv(LEGISLATURA_DESIGNATA + "_" + CSV_FILENAME_DEPUTATI, rows)
     
-    rows = scrape_senatori()
-    write_csv(LEGISLATURA + "_" + CSV_FILENAME_SENATORI, rows)
-
-    rows = scrape()
-
-    write_csv(LEGISLATURA + "_" + CSV_FILENAME_DEPUTATI, rows)
-
+    if (LEGISLATURA_DESIGNATA > 9 and LEGISLATURA_DESIGNATA <= ULTIMA_LEGISLATURA):
+        create_csv_file(LEGISLATURA_DESIGNATA + "_" + CSV_FILENAME_SENATORI)
+        rows = scrape_senatori()
+        write_csv(LEGISLATURA_DESIGNATA + "_" + CSV_FILENAME_SENATORI, rows)
 
 if __name__ == "__main__":
     main()
