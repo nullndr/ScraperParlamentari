@@ -96,7 +96,7 @@ def scrape_senatori():
         for senatore in senatori:
             numero_senatori += 1
             elem = senatore.select_one(":nth-child(2)").p.a
-            cognome, nome = elem.get_text().lower().split(" ", 1)
+            cognome, nome = elem.get_text().split(" ", 1)
             # Ottengo l'id troncando il nome della foto profilo in quanto quello contiene gli zeri di padding mentre quello nel link vero e proprio no
             id = senatore.select_one(":nth-child(1)").img["src"][-12:][:-4]
             link_senatore = "https://www.senato.it/leg/"+ULTIMA_LEGISLATURA+"/BGT/Schede/Attsen/" + id + ".htm"
@@ -130,12 +130,12 @@ def scrape_senatori():
     return rows
 
 def main() -> None:
-    if (LEGISLATURA_DESIGNATA > 16 and LEGISLATURA_DESIGNATA <= ULTIMA_LEGISLATURA):
+    if (int(LEGISLATURA_DESIGNATA) > 16 and int(LEGISLATURA_DESIGNATA) <= int(ULTIMA_LEGISLATURA)):
         create_csv_file(LEGISLATURA_DESIGNATA + "_" + CSV_FILENAME_DEPUTATI)
         rows = scrape()
         write_csv(LEGISLATURA_DESIGNATA + "_" + CSV_FILENAME_DEPUTATI, rows)
     
-    if (LEGISLATURA_DESIGNATA > 9 and LEGISLATURA_DESIGNATA <= ULTIMA_LEGISLATURA):
+    if (int(LEGISLATURA_DESIGNATA) > 9 and int(LEGISLATURA_DESIGNATA) <= int(ULTIMA_LEGISLATURA)):
         create_csv_file(LEGISLATURA_DESIGNATA + "_" + CSV_FILENAME_SENATORI)
         rows = scrape_senatori()
         write_csv(LEGISLATURA_DESIGNATA + "_" + CSV_FILENAME_SENATORI, rows)
