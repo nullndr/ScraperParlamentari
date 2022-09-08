@@ -8,15 +8,9 @@ from bs4 import BeautifulSoup
 from multiprocessing import Pool
 
 ULTIMA_LEGISLATURA = "18"
-
 LEGISLATURA_DESIGNATA = "18"
 CSV_FILENAME_DEPUTATI: str = "deputati.csv"
 CSV_FILENAME_SENATORI: str = "senatori.csv"
-
-# Pagina contenente un menù a tendina con nomi, cognomi e id di tutti i deputati
-DEPUTIES_URL = 'https://www.camera.it/leg'+LEGISLATURA_DESIGNATA+'/28'
-
-deputies = []
 
 def create_csv_file(fileName: str) -> None:
     try:
