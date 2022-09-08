@@ -1,170 +1,198 @@
 import csv
 import os
 import re
+from multiprocessing import Pool
 
 import requests
 from bs4 import BeautifulSoup
 
-from multiprocessing import Pool
+from utils import blue, bold, cyan
 
-ULTIMA_LEGISLATURA = "18"
-LEGISLATURA_DESIGNATA = "18"
+LAST_LEGISLATURE: int = 18
+DEGIGNATED_LEGISLATURE: int = 18
 CSV_FILENAME_DEPUTATI: str = "deputati.csv"
 CSV_FILENAME_SENATORI: str = "senatori.csv"
 
+
 def create_csv_file(fileName: str) -> None:
     try:
-        with open(fileName, "x") as csv_file:
+        with open(fileName, "w") as csv_file:
             writer = csv.writer(csv_file)
             writer.writerow(("id", "cognome", "nome", "email"))
-    except:
-        print(f"[ ! ] Error creating {fileName}: file already exists")
+    except Exception as e:
+        print(f"[ ! ] Error: {e}")
         os._exit(1)
 
 
 def write_csv(fileName: str, rows: list[tuple[str, str, str, str]]) -> None:
-    with open(fileName, "a") as csv_file:
-        writer = csv.writer(csv_file)
-        writer.writerows(rows)
+    try:
+        with open(fileName, "a") as csv_file:
+            writer = csv.writer(csv_file)
+            writer.writerows(rows)
+    except Exception as e:
+        print(f"[ ! ] Error: {e}")
+        os._exit(1)
 
 
-def process_lettera_deputati(char_offset):
+def process_deputies_by_letter(char_offset):
 
-    result = []
+    result: list[tuple[str, int, int, int]] = []
     # Statistiche
-    numero_deputati = deputati_con_mail = deputati_senza_mail = 0
+    deputies_number: int = 0
+    deputies_with_email: int = 0
+    deputies_without_email: int = 0
 
-    char = chr(ord('a')+char_offset)
-    url = "https://www.camera.it/leg"+LEGISLATURA_DESIGNATA+"/28?lettera=" + char
-    r = requests.get(url)
-    soup = BeautifulSoup(r.text, 'lxml')
+    char = chr(ord('a') + char_offset)
+    url = f'https://www.camera.it/leg{DEGIGNATED_LEGISLATURE}/28?lettera={char}'
+    response = requests.get(url)
+    soup = BeautifulSoup(response.text, 'lxml')
 
-    deputati = soup.find_all("div", {"class": "fn"})
-    
-    for deputato in deputati:
-        numero_deputati += 1
-        
-        cognome_nome = deputato.a.text.split()
-        nome = ' '.join(w for w in cognome_nome if w.istitle())
-        cognome = ' '.join(w for w in cognome_nome if w.isupper())
+    deputies = soup.find_all("div", {"class": "fn"})
+
+    for deputy in deputies:
+        deputies_number += 1
+
+        firstname_lastname = deputy.a.text.split()
+        firstname = ' '.join(w for w in firstname_lastname if w.istitle())
+        lastname = ' '.join(w for w in firstname_lastname if w.isupper())
 
         # Ottengo l'id troncando il nome della foto profilo in quanto quello contiene gli zeri di padding mentre quello nel link vero e proprio no
-        id = deputato.a["href"][133:139]
-        link_deputato = 'https://scrivi.camera.it/scrivi?dest=deputato&id_aul=' + id
-        r = requests.get(link_deputato)
-        writeTo = BeautifulSoup(r.text, 'lxml')
-        
+        id = deputy.a["href"][133:139]
+        deputy_link = f'https://scrivi.camera.it/scrivi?dest=deputato&id_aul={id}'
+        response = requests.get(deputy_link)
+        write_to = BeautifulSoup(response.text, 'lxml')
+
         # Il tag HTML 'title' di questa pagina contiene la parola 'Errore' se il
         # deputato è cessato dal mandato parlamentare. Se invece il deputato è in
         # carica, contiene il suo indirizzo email.
-        if 'Errore' in writeTo.title.text:
+        if 'Errore' in write_to.title.text:
             email = ''
-            deputati_con_mail += 1
+            deputies_with_email += 1
         else:
             email = re.compile(
-                '\w+@CAMERA.IT').search(writeTo.title.text).group().lower()
-            deputati_senza_mail += 1
+                '\w+@CAMERA.IT').search(write_to.title.text).group().lower()
+            deputies_without_email += 1
 
         # Stampo in console un deputato alla volta per verificare se lo scraping sta funzionando
-        print(f'{id:7} {cognome:20} {nome:20} {email}')
-        result.append((id, cognome, nome, email))
-    
+        print(
+            f' - {cyan(id)}\n\t- {bold(lastname)}\n\t- {bold(firstname)}\n\t- {bold(email)}\n')
+        result.append((id, lastname, firstname, email))
+
     # Preparo una tupla da scrivere nel csv
-    return result, numero_deputati, deputati_con_mail, deputati_senza_mail
+    return result, deputies_number, deputies_with_email, deputies_without_email
 
 
-def scrape_deputati():
+def scrape_deputies():
 
     rows: list[tuple[str, str, str, str]] = []
 
     # Statistiche
-    numero_deputati = deputati_con_mail = deputati_senza_mail = 0
-    
-    with Pool(processes=64) as pool:  
-        res = pool.map(process_lettera_deputati, range(0,28))
+    deputies_number: int = 0
+    deputies_with_email: int = 0
+    deputies_without_email: int = 0
+
+    with Pool(processes=64) as pool:
+        res = pool.map(process_deputies_by_letter, range(0, 28))
         for data in res:
-            rows += data[0]
-            numero_deputati += data[1]
-            deputati_con_mail += data[3]
-            deputati_senza_mail += data[2]
+            rows.append(data[0])
+            deputies_number += data[1]
+            deputies_with_email += data[3]
+            deputies_without_email += data[2]
 
     # Riepilogo finale
-    print(f'\nI deputati sono {numero_deputati}, di cui {deputati_con_mail} dotati di indirizzo e-mail perché in carica e {deputati_senza_mail} no perché cessati dal mandato parlamentare.')
+    print(f'\nI deputati sono {bold(cyan(deputies_number))}, di cui {bold(cyan(deputies_with_email))} dotati di indirizzo e-mail perché in carica e {bold(cyan(deputies_without_email))} no perché cessati dal mandato parlamentare.')
     return rows
 
 
-def process_lettera_senatori(char_offset):
+def process_senators_by_letter(char_offset):
 
     result = []
     # Statistiche
-    numero_senatori = senatori_con_mail = senatori_senza_mail = 0
+    senators_number: int = 0
+    senators_with_email: int = 0
+    senators_without_email: int = 0
 
-    char = chr(ord('a')+char_offset)
-    url = "https://www.senato.it/leg/"+LEGISLATURA_DESIGNATA+"/BGT/Schede/Attsen/Sen" + char + ".html"
-    r = requests.get(url)
-    soup = BeautifulSoup(r.text, 'lxml')
+    char = chr(ord('a') + char_offset)
+    url = f"https://www.senato.it/leg/{DEGIGNATED_LEGISLATURE}/BGT/Schede/Attsen/Sen{char}.html"
+    response = requests.get(url)
+    soup = BeautifulSoup(response.text, 'lxml')
 
-    senatori = soup.find_all("div", {"class": "senatore"})
-    
-    for senatore in senatori:
-        numero_senatori += 1
-        elem = senatore.select_one(":nth-child(2)").p.a
-        cognome, nome = elem.get_text().split(" ", 1)
+    senators = soup.find_all("div", {"class": "senatore"})
+
+    for senator in senators:
+        senators_number += 1
+        elem = senator.select_one(":nth-child(2)").p.a
+        lastname, firstname = elem.get_text().split(" ", 1)
         # Ottengo l'id troncando il nome della foto profilo in quanto quello contiene gli zeri di padding mentre quello nel link vero e proprio no
-        id = senatore.select_one(":nth-child(1)").img["src"][-12:][:-4]
-        link_senatore = "https://www.senato.it/leg/"+ULTIMA_LEGISLATURA+"/BGT/Schede/Attsen/" + id + ".htm"
-        r = requests.get(link_senatore)
-        writeTo = BeautifulSoup(r.text, 'lxml')
+        id = senator.select_one(":nth-child(1)").img["src"][-12:][:-4]
+        senator_link = f"https://www.senato.it/leg/{LAST_LEGISLATURE}/BGT/Schede/Attsen/{id}.htm"
+        response = requests.get(senator_link)
+        write_to = BeautifulSoup(response.text, 'lxml')
         # Se si cerca per a con class cnt_email non si trova nulla perchè è iniettato da un js.
-        mail = writeTo.find_all("ul", {"class": "composizione contatti"})
+        email = write_to.find_all("ul", {"class": "composizione contatti"})
 
-        # La parte della mail viene iniettata da un js quindi quando lo cerco tramite BeautifulSoup trovo solo il js. 
+        # La parte della mail viene iniettata da un js quindi quando lo cerco tramite BeautifulSoup trovo solo il js.
         # Essendo il js "fisso" con solo la parte della mail che cambia, taglio la prima parte sempre uguale, divido il restante per l'apice
         # solo una volta così ad indice 0 ci sarà la mail ed a indice 1 ci sarà il resto dello script.
         # L'if è perchè coloro che non hanno la mail non hanno lo script
-        if(str(mail)[37:43]=="script"):
-            email = str(mail)[124:].split("'", 1)[0]
-            senatori_con_mail += 1
+        if str(email)[37:43] == "script":
+            email = str(email)[124:].split("'", 1)[0]
+            senators_with_email += 1
         else:
             email = ""
-            senatori_senza_mail += 1
+            senators_without_email += 1
 
-        # Stampo in console un deputato alla volta per verificare se lo scraping sta funzionando
-        print(f'{id:7} {cognome:20} {nome:20} {email}')
-        result.append((id, cognome, nome, email))
-    
+        # Stampo in console un senatore alla volta per verificare se lo scraping sta funzionando
+        print(
+            f' - {cyan(id)}\n\t- {bold(lastname)}\n\t- {bold(firstname)}\n\t- {bold(email)}\n')
+        result.append((id, lastname, firstname, email))
+
     # Preparo una tupla da scrivere nel csv
-    return result, numero_senatori, senatori_con_mail, senatori_senza_mail
+    return result, senators_number, senators_with_email, senators_without_email
 
 
-def scrape_senatori():
+def scrape_senators():
 
     rows: list[tuple[str, str, str, str]] = []
 
     # Statistiche
-    numero_senatori = senatori_con_mail = senatori_senza_mail = 0
-    
-    with Pool(processes=64) as pool:  
-        res = pool.map(process_lettera_senatori, range(0,28))
+    senators_number = senators_without_mail = senators_with_mail = 0
+
+    with Pool(processes=64) as pool:
+        res = pool.map(process_senators_by_letter, range(0, 28))
         for data in res:
             rows += data[0]
-            numero_senatori += data[1]
-            senatori_con_mail += data[2]
-            senatori_senza_mail += data[3]
+            senators_number += data[1]
+            senators_without_mail += data[2]
+            senators_with_mail += data[3]
 
     # Riepilogo finale
-    print(f'\nI senatori sono {numero_senatori}, di cui {senatori_con_mail} dotati di indirizzo e-mail e {senatori_senza_mail} no.')
+    print(
+        f'\nI senatori sono {bold(cyan(senators_number))}, di cui {bold(cyan(senators_without_mail))} dotati di indirizzo e-mail e {bold(cyan(senators_with_mail))} no.')
     return rows
 
+
 def main() -> None:
-    if (int(LEGISLATURA_DESIGNATA) > 16 and int(LEGISLATURA_DESIGNATA) <= int(ULTIMA_LEGISLATURA)):
-        create_csv_file(LEGISLATURA_DESIGNATA + "_" + CSV_FILENAME_DEPUTATI)
-        rows = scrape_deputati()
-        write_csv(LEGISLATURA_DESIGNATA + "_" + CSV_FILENAME_DEPUTATI, rows)
-    if (int(LEGISLATURA_DESIGNATA) > 9 and int(LEGISLATURA_DESIGNATA) <= int(ULTIMA_LEGISLATURA)):
-        create_csv_file(LEGISLATURA_DESIGNATA + "_" + CSV_FILENAME_SENATORI)
-        rows = scrape_senatori()
-        write_csv(LEGISLATURA_DESIGNATA + "_" + CSV_FILENAME_SENATORI, rows)
+    if DEGIGNATED_LEGISLATURE > 16 and DEGIGNATED_LEGISLATURE <= LAST_LEGISLATURE:
+
+        create_csv_file(f'{DEGIGNATED_LEGISLATURE}_{CSV_FILENAME_DEPUTATI}')
+
+        rows = scrape_deputies()
+
+        write_csv(f'{DEGIGNATED_LEGISLATURE}_{CSV_FILENAME_DEPUTATI}', rows)
+
+    if DEGIGNATED_LEGISLATURE > 9 and DEGIGNATED_LEGISLATURE <= LAST_LEGISLATURE:
+
+        create_csv_file(f'{DEGIGNATED_LEGISLATURE}_{CSV_FILENAME_SENATORI}')
+
+        rows = scrape_senators()
+
+        write_csv(f'{DEGIGNATED_LEGISLATURE}_{CSV_FILENAME_SENATORI}', rows)
+
 
 if __name__ == "__main__":
-    main()
+    try:
+        print(f'\n{bold(blue("::"))} {bold("Avvio dello script")}\n')
+        main()
+    except KeyboardInterrupt:
+        os._exit(1)
