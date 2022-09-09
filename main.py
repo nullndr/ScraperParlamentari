@@ -83,7 +83,7 @@ def process_deputies_by_letter(color, char):
             deputies_without_email += 1
 
         # Stampo in console un deputato alla volta per verificare se lo scraping sta funzionando
-        print(f' - {globals()[color](id)}\n\t- {bold(lastname)}\n\t- {bold(firstname)}\n\t- {bold(email)}\n')
+        #print(f' - {globals()[color](id)}\n\t- {bold(lastname)}\n\t- {bold(firstname)}\n\t- {bold(email)}\n')
         result.append((id, lastname, firstname, email))
 
     # Preparo una tupla da scrivere nel csv
@@ -102,7 +102,7 @@ def scrape_deputies(index, return_dict, color):
     with Pool(processes=64) as pool:
         res = pool.map(process_deputies_by_letter, zip(itertools.repeat(color),list(map(chr, range(97, 123)))))
         for data in res:
-            rows.append(data[0])
+            rows += data[0]
             deputies_number += data[1]
             deputies_with_email += data[3]
             deputies_without_email += data[2]
@@ -151,7 +151,7 @@ def process_senators_by_letter(color, char):
             senators_without_email += 1
 
         # Stampo in console un senatore alla volta per verificare se lo scraping sta funzionando
-        print(f' - {globals()[color](id)}\n\t- {bold(lastname)}\n\t- {bold(firstname)}\n\t- {bold(email)}\n')
+        #print(f' - {globals()[color](id)}\n\t- {bold(lastname)}\n\t- {bold(firstname)}\n\t- {bold(email)}\n')
         result.append((id, lastname, firstname, email))
 
     # Preparo una tupla da scrivere nel csv
@@ -190,7 +190,7 @@ def main() -> None:
         p1 = Process(target=scrape_deputies, args=("deputati", return_dict, "red"))
         jobs.append(p1)
         p1.start()
-        
+    
     if DEGIGNATED_LEGISLATURE > 9 and DEGIGNATED_LEGISLATURE <= LAST_LEGISLATURE:
 
         create_csv_file(f'{DEGIGNATED_LEGISLATURE}_{CSV_FILENAME_SENATORI}')
@@ -198,7 +198,7 @@ def main() -> None:
         p2 = Process(target=scrape_senators, args=("senatori",return_dict, "cyan"))
         jobs.append(p2)
         p2.start()
-       
+    
     for proc in jobs:
         proc.join()
 
