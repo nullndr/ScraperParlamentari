@@ -107,9 +107,6 @@ def scrape_deputies(index, return_dict, color):
             deputies_with_email += data[3]
             deputies_without_email += data[2]
 
-    # Riepilogo finale
-    #print(f'\nI deputati sono {bold(globals()[color](deputies_number))}, di cui {bold(globals()[color](deputies_with_email))} dotati di indirizzo e-mail perché in carica e {bold(globals()[color](deputies_without_email))} no perché cessati dal mandato parlamentare.')
-    
     return_dict[index]=[rows, deputies_number, deputies_with_email, deputies_without_email, color]
 
 @unpack_args
@@ -173,9 +170,6 @@ def scrape_senators(index, return_dict, color):
             senators_without_email += data[3]
             senators_with_email += data[2]
     
-    # Riepilogo finale
-    #print(f'\nI senatori sono {bold(globals()[color](senators_number))}, di cui {bold(globals()[color](senators_without_email))} dotati di indirizzo e-mail e {bold(globals()[color](senators_with_email))} no.')
-    
     return_dict[index]=[rows, senators_number, senators_with_email, senators_without_email, color]
 
 
@@ -204,8 +198,9 @@ def main() -> None:
 
     for value in return_dict:
         write_csv(f'{DEGIGNATED_LEGISLATURE}_{value}.csv', return_dict[value][0])
+        color = return_dict[value][4]
         # Riepilogo finale
-        print(f'\nI {value} sono {bold(globals()[return_dict[value][4]](return_dict[value][1]))}, di cui {bold(globals()[return_dict[value][4]](return_dict[value][2]))} dotati di indirizzo e-mail e {bold(globals()[return_dict[value][4]](return_dict[value][3]))} no.')
+        print(f'\nI {value} sono {bold(globals()[color](return_dict[value][1]))}, di cui {bold(globals()[color](return_dict[value][2]))} dotati di indirizzo e-mail e {bold(globals()[color](return_dict[value][3]))} no.')
     
     
 
