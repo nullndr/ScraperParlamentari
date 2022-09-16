@@ -3,6 +3,7 @@
 BOLD = '\x1b[1m'
 BLUE = '\x1b[34m'
 CYAN = '\x1b[36m'
+RED = '\x1b[31m'
 OFF = '\x1b[0m'
 DEF_FOREGROUND = '\x1b[39m'
 
@@ -17,3 +18,7 @@ def bold(string: str) -> str:
 
 def cyan(string: str) -> str:
     return f"{CYAN}{string}{DEF_FOREGROUND}"
+
+
+def red(string: str) -> str:
+    return f"{RED}{string}{DEF_FOREGROUND}"

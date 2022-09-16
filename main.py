@@ -1,17 +1,30 @@
 import csv
 import os
 import re
-from multiprocessing import Pool
+from multiprocessing import Manager, Pool, Process
+from multiprocessing.managers import DictProxy
 
 import requests
 from bs4 import BeautifulSoup
 
-from utils import blue, bold, cyan
+from utils import blue, bold, cyan, red
 
 LAST_LEGISLATURE: int = 18
 DEGIGNATED_LEGISLATURE: int = 18
 CSV_FILENAME_DEPUTATI: str = "deputati.csv"
 CSV_FILENAME_SENATORI: str = "senatori.csv"
+
+
+def unpack_args(func):
+    from functools import wraps
+
+    @wraps(func)
+    def wrapper(args):
+        if isinstance(args, dict):
+            return func(**args)
+        else:
+            return func(*args)
+    return wrapper
 
 
 def create_csv_file(fileName: str) -> None:
@@ -34,7 +47,8 @@ def write_csv(fileName: str, rows: list[tuple[str, str, str, str]]) -> None:
         os._exit(1)
 
 
-def process_deputies_by_letter(char_offset):
+@unpack_args
+def process_deputies_by_letter(char) -> tuple[list[tuple[str, int, int, int]], int, int, int]:
 
     result: list[tuple[str, int, int, int]] = []
     # Statistiche
@@ -42,7 +56,6 @@ def process_deputies_by_letter(char_offset):
     deputies_with_email: int = 0
     deputies_without_email: int = 0
 
-    char = chr(ord('a') + char_offset)
     url = f'https://www.camera.it/leg{DEGIGNATED_LEGISLATURE}/28?lettera={char}'
     response = requests.get(url)
     soup = BeautifulSoup(response.text, 'lxml')
@@ -73,46 +86,42 @@ def process_deputies_by_letter(char_offset):
                 '\w+@CAMERA.IT').search(write_to.title.text).group().lower()
             deputies_without_email += 1
 
-        # Stampo in console un deputato alla volta per verificare se lo scraping sta funzionando
-        print(
-            f' - {cyan(id)}\n\t- {bold(lastname)}\n\t- {bold(firstname)}\n\t- {bold(email)}\n')
         result.append((id, lastname, firstname, email))
 
     # Preparo una tupla da scrivere nel csv
-    return result, deputies_number, deputies_with_email, deputies_without_email
+    return (result, deputies_number, deputies_with_email, deputies_without_email)
 
 
-def scrape_deputies():
+def scrape_deputies(index: str, return_dict: DictProxy, color: str) -> None:
 
     rows: list[tuple[str, str, str, str]] = []
-
     # Statistiche
     deputies_number: int = 0
     deputies_with_email: int = 0
     deputies_without_email: int = 0
 
     with Pool(processes=64) as pool:
-        res = pool.map(process_deputies_by_letter, range(0, 28))
+        res = pool.map(process_deputies_by_letter,
+                       zip(list(map(chr, range(97, 123)))))
         for data in res:
-            rows.append(data[0])
+            rows += data[0]
             deputies_number += data[1]
             deputies_with_email += data[3]
             deputies_without_email += data[2]
 
-    # Riepilogo finale
-    print(f'\nI deputati sono {bold(cyan(deputies_number))}, di cui {bold(cyan(deputies_with_email))} dotati di indirizzo e-mail perché in carica e {bold(cyan(deputies_without_email))} no perché cessati dal mandato parlamentare.')
-    return rows
+    return_dict[index] = [rows, deputies_number,
+                          deputies_with_email, deputies_without_email, color]
 
 
-def process_senators_by_letter(char_offset):
+@unpack_args
+def process_senators_by_letter(char) -> tuple[list[tuple[str, str, str, str]], int, int, int]:
 
-    result = []
+    result: list[tuple[str, str, str, str]] = []
     # Statistiche
-    senators_number: int = 0
-    senators_with_email: int = 0
-    senators_without_email: int = 0
+    senators_number = 0
+    senators_with_email = 0
+    senators_without_email = 0
 
-    char = chr(ord('a') + char_offset)
     url = f"https://www.senato.it/leg/{DEGIGNATED_LEGISLATURE}/BGT/Schede/Attsen/Sen{char}.html"
     response = requests.get(url)
     soup = BeautifulSoup(response.text, 'lxml')
@@ -142,52 +151,68 @@ def process_senators_by_letter(char_offset):
             email = ""
             senators_without_email += 1
 
-        # Stampo in console un senatore alla volta per verificare se lo scraping sta funzionando
-        print(
-            f' - {cyan(id)}\n\t- {bold(lastname)}\n\t- {bold(firstname)}\n\t- {bold(email)}\n')
         result.append((id, lastname, firstname, email))
 
     # Preparo una tupla da scrivere nel csv
-    return result, senators_number, senators_with_email, senators_without_email
+    return (result, senators_number, senators_with_email, senators_without_email)
 
 
-def scrape_senators():
+def scrape_senators(index: str, return_dict: DictProxy, color: str) -> None:
 
     rows: list[tuple[str, str, str, str]] = []
-
     # Statistiche
-    senators_number = senators_without_mail = senators_with_mail = 0
+    senators_number = 0
+    senators_without_email = 0
+    senators_with_email = 0
 
     with Pool(processes=64) as pool:
-        res = pool.map(process_senators_by_letter, range(0, 28))
+        res = pool.map(process_senators_by_letter,
+                       zip(list(map(chr, range(97, 123)))))
         for data in res:
             rows += data[0]
             senators_number += data[1]
-            senators_without_mail += data[2]
-            senators_with_mail += data[3]
+            senators_without_email += data[3]
+            senators_with_email += data[2]
 
-    # Riepilogo finale
-    print(
-        f'\nI senatori sono {bold(cyan(senators_number))}, di cui {bold(cyan(senators_without_mail))} dotati di indirizzo e-mail e {bold(cyan(senators_with_mail))} no.')
-    return rows
+    return_dict[index] = [rows, senators_number,
+                          senators_with_email, senators_without_email, color]
 
 
 def main() -> None:
+    manager = Manager()
+    return_dict = manager.dict()
+    jobs: list[Process] = []
+
     if DEGIGNATED_LEGISLATURE > 16 and DEGIGNATED_LEGISLATURE <= LAST_LEGISLATURE:
 
         create_csv_file(f'{DEGIGNATED_LEGISLATURE}_{CSV_FILENAME_DEPUTATI}')
-
-        rows = scrape_deputies()
-
-        write_csv(f'{DEGIGNATED_LEGISLATURE}_{CSV_FILENAME_DEPUTATI}', rows)
+        p1 = Process(target=scrape_deputies, args=(
+            "deputati", return_dict, "red"))
+        jobs.append(p1)
+        p1.start()
 
     if DEGIGNATED_LEGISLATURE > 9 and DEGIGNATED_LEGISLATURE <= LAST_LEGISLATURE:
 
         create_csv_file(f'{DEGIGNATED_LEGISLATURE}_{CSV_FILENAME_SENATORI}')
 
-        rows = scrape_senators()
+        p2 = Process(target=scrape_senators, args=(
+            "senatori", return_dict, "cyan"))
+        jobs.append(p2)
+        p2.start()
 
-        write_csv(f'{DEGIGNATED_LEGISLATURE}_{CSV_FILENAME_SENATORI}', rows)
+    for proc in jobs:
+        proc.join()
+
+    for value in return_dict:
+        write_csv(f'{DEGIGNATED_LEGISLATURE}_{value}.csv',
+                  return_dict[value][0])
+        color = return_dict[value][4]
+        # Riepilogo finale
+        total_number = globals()[color](return_dict[value][1])
+        with_email = globals()[color](return_dict[value][2])
+        without_email = globals()[color](return_dict[value][3])
+        print(
+            f'\nI {value} sono {bold(total_number)}, di cui {bold(with_email)} dotati di indirizzo e-mail e {bold(without_email)} no.')
 
 
 if __name__ == "__main__":
