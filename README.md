@@ -1,7 +1,7 @@
 
 # Web scraper per deputati e senatori della repubblica italiana
 
-## setup
+## Setup
 
 Installa le dipendenze python con:
 
